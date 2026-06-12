@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-sub">Model overview & quick actions</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn-secondary" onclick="trainModel()">▷ Train 25 Steps</button>
+    <button class="btn-danger-sm" onclick="resetModel()">↺ Reset</button>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-grid">
+  <div class="stat-card" id="sc-loss">
+    <div class="stat-label">CURRENT LOSS</div>
+    <div class="stat-value" id="val-loss">{{ "%.4f"|format(state.loss) }}</div>
+    <div class="stat-desc">Cross-entropy</div>
+  </div>
+  <div class="stat-card accent-green" id="sc-acc">
+    <div class="stat-label">ACCURACY</div>
+    <div class="stat-value" id="val-acc">{{ state.accuracy }}%</div>
+    <div class="stat-desc">On random eval</div>
+  </div>
+  <div class="stat-card {% if state.issues %}accent-red{% else %}accent-green{% endif %}" id="sc-issues">
+    <div class="stat-label">ISSUES</div>
+    <div class="stat-value" id="val-issues">{{ state.issues|length }}</div>
+    <div class="stat-desc">Detected anomalies</div>
+  </div>
+  <div class="stat-card accent-purple" id="sc-layers">
+    <div class="stat-label">LAYERS</div>
+    <div class="stat-value">{{ state.layers|length }}</div>
+    <div class="stat-desc">{{ state.arch|join(' → ') }}</div>
+  </div>
+</div>
+
+<!-- Layer Health Table -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Layer Health</span>
+    <span class="card-badge">{{ state.layers|length }} layers</span>
+  </div>
+  <table class="data-table" id="layer-table">
+    <thead>
+      <tr>
+        <th>#</th><th>Name</th><th>Shape</th>
+        <th>Mean |W|</th><th>Std</th><th>Max |W|</th><th>Zeros</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in state.layers %}
+      <tr>
+        <td class="mono cyan">{{ loop.index0 }}</td>
+        <td>{{ l.name }}</td>
+        <td class="mono">{{ l.shape[0] }}×{{ l.shape[1] }}</td>
+        <td class="mono">{{ "%.5f"|format(l.mean) }}</td>
+        <td class="mono">{{ "%.5f"|format(l.std) }}</td>
+        <td class="mono">{{ "%.5f"|format(l.max) }}</td>
+        <td class="mono">{{ "%.1f"|format(l.zeros*100) }}%</td>
+        <td>
+          {% if l.healthy %}
+            <span class="badge badge-green">HEALTHY</span>
+          {% else %}
+            <span class="badge badge-red">{{ l.error or 'ERROR' }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Issues -->
+{% if state.issues %}
+<div class="card card-danger">
+  <div class="card-header">
+    <span class="card-title">⚠ Detected Issues</span>
+    <a href="{{ url_for('repair') }}" class="btn-primary-sm">Repair Now →</a>
+  </div>
+  {% for iss in state.issues %}
+  <div class="issue-row">
+    <span class="issue-layer">{{ iss[0] }}</span>
+    <span class="badge badge-red">{{ iss[1].replace('_',' ').title() }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card card-success">
+  <div class="card-header">
+    <span class="card-title">✓ All layers healthy</span>
+    <a href="{{ url_for('inject_error') }}" class="btn-secondary-sm">Inject Error →</a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Quick Nav Cards -->
+<div class="quick-nav">
+  <a href="{{ url_for('upload_model') }}" class="qn-card">
+    <span class="qn-icon">⬆</span>
+    <span class="qn-label">Upload Model</span>
+    <span class="qn-desc">Load a .py architecture</span>
+  </a>
+  <a href="{{ url_for('inject_error') }}" class="qn-card">
+    <span class="qn-icon">⚡</span>
+    <span class="qn-label">Inject Error</span>
+    <span class="qn-desc">Simulate 6 error types</span>
+  </a>
+  <a href="{{ url_for('repair') }}" class="qn-card">
+    <span class="qn-icon">✦</span>
+    <span class="qn-label">Auto Repair</span>
+    <span class="qn-desc">5 repair strategies</span>
+  </a>
+  <a href="{{ url_for('graphs') }}" class="qn-card">
+    <span class="qn-icon">◉</span>
+    <span class="qn-label">Graphs</span>
+    <span class="qn-desc">Training & weight charts</span>
+  </a>
+  <a href="{{ url_for('reports') }}" class="qn-card">
+    <span class="qn-icon">⬇</span>
+    <span class="qn-label">Reports</span>
+    <span class="qn-desc">Download HTML/JSON</span>
+  </a>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function trainModel() {
+  showToast("Training 25 steps…");
+  const r = await fetch("/api/train", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({steps:25})});
+  const d = await r.json();
+  document.getElementById("val-loss").textContent = d.loss;
+  document.getElementById("val-acc").textContent  = d.accuracy + "%";
+  document.getElementById("val-issues").textContent = d.issues.length;
+  showToast("Training complete — Loss: " + d.loss);
+}
+async function resetModel() {
+  if (!confirm("Reset model to default?")) return;
+  await fetch("/api/reset", {method:"POST"});
+  location.reload();
+}
+</script>
+{% endblock %}

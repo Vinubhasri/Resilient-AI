@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set show_nav = false %}
+{% block title %}Sign In{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-visual">
+    <div class="auth-visual-inner">
+      <div class="neural-rings">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
+        <div class="ring-center">⬡</div>
+      </div>
+      <h2 class="auth-tagline">Neural Networks.<br>Self-Healing.</h2>
+      <p class="auth-sub">Detect. Diagnose. Repair. Automatically.</p>
+    </div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-form-box">
+      <div class="auth-form-logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">Resilient<em>AI</em></span>
+      </div>
+      <h1 class="auth-heading">Welcome back</h1>
+      <p class="auth-subheading">Sign in to your workspace</p>
+
+      {% if error %}
+      <div class="auth-error">⚠ {{ error }}</div>
+      {% endif %}
+
+      <form method="POST" class="auth-form">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" name="username" placeholder="your_username" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="auth-btn">Sign In →</button>
+      </form>
+
+      <p class="auth-switch">New here? <a href="{{ url_for('signup') }}">Create an account</a></p>
+
+      <div class="demo-hint">
+        <span>Demo:</span> Register any username/password to try it instantly
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

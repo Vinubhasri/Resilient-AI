@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Upload Model{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Upload Model</h1>
+    <p class="page-sub">Load a Python model file — errors are detected and auto-repaired on upload</p>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert-error">⚠ {{ error }}</div>
+{% endif %}
+
+{# ── Model loaded cleanly (no errors) ── #}
+{% if success and not auto_repair %}
+<div class="alert alert-success">
+  <strong>✓ Model loaded — no errors detected</strong><br>
+  Name: <span class="mono cyan">{{ success.name }}</span> &nbsp;|&nbsp;
+  File: <span class="mono">{{ success.file }}</span><br>
+  Architecture: <span class="mono">{{ success.arch | join(' → ') }}</span>
+  <div style="margin-top:12px">
+    <a href="{{ url_for('dashboard') }}" class="btn-primary-sm">View Dashboard →</a>
+    <a href="{{ url_for('inject_error') }}" class="btn-secondary-sm" style="margin-left:8px">Inject Error →</a>
+  </div>
+</div>
+{% endif %}
+
+{# ── Auto-repair was triggered ── #}
+{% if auto_repair and auto_repair.triggered %}
+<div class="auto-repair-banner">
+
+  <div class="arb-header">
+    <div class="arb-icon">⚡→✦</div>
+    <div class="arb-header-text">
+      <div class="arb-title">Errors detected — Auto-repair applied automatically</div>
+      <div class="arb-sub">
+        Model: <span class="cyan mono">{{ success.name }}</span> &nbsp;|&nbsp;
+        File: <span class="mono">{{ success.file }}</span> &nbsp;|&nbsp;
+        Arch: <span class="mono">{{ success.arch | join(' → ') }}</span>
+      </div>
+    </div>
+    <div class="arb-status {% if auto_repair.issues_after|length == 0 %}status-ok{% else %}status-warn{% endif %}">
+      {% if auto_repair.issues_after|length == 0 %}✓ Fully Repaired
+      {% else %}⚠ {{ auto_repair.issues_after|length }} remain{% endif %}
+    </div>
+  </div>
+
+  {# Before / After stats #}
+  <div class="arb-metrics">
+    <div class="arb-metric-group">
+      <div class="arb-metric-label">BEFORE REPAIR</div>
+      <div class="arb-metric-row">
+        <div class="arb-metric">
+          <span class="arb-val red">{{ auto_repair.loss_before }}</span>
+          <span class="arb-name">Loss</span>
+        </div>
+        <div class="arb-metric">
+          <span class="arb-val red">{{ auto_repair.acc_before }}%</span>
+          <span class="arb-name">Accuracy</span>
+        </div>
+        <div class="arb-metric">
+          <span class="arb-val red">{{ auto_repair.issues_before|length }}</span>
+          <span class="arb-name">Issues</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arb-arrow">→</div>
+
+    <div class="arb-metric-group">
+      <div class="arb-metric-label">AFTER REPAIR</div>
+      <div class="arb-metric-row">
+        <div class="arb-metric">
+          <span class="arb-val green">{{ auto_repair.loss_after }}</span>
+          <span class="arb-name">Loss</span>
+        </div>
+        <div class="arb-metric">
+          <span class="arb-val green">{{ auto_repair.acc_after }}%</span>
+          <span class="arb-name">Accuracy</span>
+        </div>
+        <div class="arb-metric">
+          <span class="arb-val {% if auto_repair.issues_after|length == 0 %}green{% else %}amber{% endif %}">
+            {{ auto_repair.issues_after|length }}
+          </span>
+          <span class="arb-name">Issues</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Errors that were found #}
+  {% if auto_repair.issues_before %}
+  <div class="arb-issues-row">
+    <span class="arb-issues-label">Errors found & repaired:</span>
+    {% for iss in auto_repair.issues_before %}
+      <span class="badge badge-red" style="margin-right:4px">{{ iss[0] }} — {{ iss[1].replace('_',' ').title() }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Collapsible repair log #}
+  <button class="arb-toggle-btn" onclick="toggleLog()">
+    ▾ Show repair log ({{ auto_repair.logs|length }} actions)
+  </button>
+  <div id="repair-log-panel" class="arb-log" style="display:none">
+    {% for entry in auto_repair.logs %}
+    <div class="repair-entry">
+      <span class="re-time">{{ entry.time }}</span>
+      <span class="re-strategy">{{ entry.strategy }}</span>
+      <span class="re-msg">{{ entry.message }}</span>
+      {% if entry.before is not none %}
+        <span class="re-delta mono">{{ entry.before }} → {{ entry.after }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="arb-actions">
+    <a href="{{ url_for('dashboard') }}" class="btn-primary-sm">View Dashboard →</a>
+    <a href="{{ url_for('repair') }}" class="btn-secondary-sm">Manual Repair →</a>
+    <a href="{{ url_for('graphs') }}" class="btn-secondary-sm">View Graphs →</a>
+    <a href="{{ url_for('reports') }}" class="btn-secondary-sm">Download Report →</a>
+  </div>
+</div>
+{% endif %}
+
+<div class="two-col">
+  <!-- Upload Form -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Upload .py Model File</span></div>
+    <form method="POST" enctype="multipart/form-data" class="upload-form">
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+        <div class="dz-icon">⬡</div>
+        <div class="dz-text">Drop your <span class="cyan">.py</span> file here</div>
+        <div class="dz-sub">or click to browse</div>
+        <div class="dz-filename" id="dz-filename"></div>
+        <input type="file" name="model_file" id="file-input" accept=".py" style="display:none" required>
+      </div>
+
+      <div class="upload-note">
+        <span class="upload-note-icon">✦</span>
+        If your model has errors, they will be <strong>detected and auto-repaired immediately</strong> on upload.
+        Manual repair strategies remain available at any time.
+      </div>
+
+      <button type="submit" class="auth-btn" style="margin-top:16px">Upload & Load Model</button>
+    </form>
+  </div>
+
+  <!-- Formats + info -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Supported Formats</span></div>
+    <div class="format-list">
+      <div class="format-item">
+        <span class="format-badge">MODEL_ARCH</span>
+        <code>MODEL_ARCH = [16, 64, 32, 4]</code>
+      </div>
+      <div class="format-item">
+        <span class="format-badge">PyTorch</span>
+        <code>nn.Linear(64, 128)</code>
+      </div>
+      <div class="format-item">
+        <span class="format-badge">Keras</span>
+        <code>Dense(64, activation='relu')</code>
+      </div>
+      <div class="format-item">
+        <span class="format-badge">LAYERS</span>
+        <code>LAYERS = [(16,32,"h1"), (32,4,"out")]</code>
+      </div>
+      <div class="format-item">
+        <span class="format-badge">Auto</span>
+        <code>[16, 32, 64, 4]  # any int list</code>
+      </div>
+    </div>
+
+    <div class="card-header" style="margin-top:20px"><span class="card-title">Quick Start Template</span></div>
+    <div class="code-block">
+      <pre># Copy, save as model.py, upload above
+MODEL_NAME = "MyClassifier"
+MODEL_ARCH = [16, 64, 32, 4]</pre>
+      <button class="copy-btn" onclick="copyTemplate()">Copy</button>
+    </div>
+
+    <div class="info-box" style="margin-top:16px">
+      <strong style="color:var(--cyan)">Auto-repair flow on upload:</strong><br>
+      Parse → Health check → <em>Errors found?</em><br>
+      &nbsp;&nbsp;Yes → Auto-repair + fine-tune → Show before/after<br>
+      &nbsp;&nbsp;No → Load clean, ready to use
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const input = document.getElementById("file-input");
+const label = document.getElementById("dz-filename");
+const dz    = document.getElementById("dropzone");
+
+input.addEventListener("change", () => {
+  label.textContent = input.files[0]?.name || "";
+  dz.classList.add("has-file");
+});
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("drag-over"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("drag-over"));
+dz.addEventListener("drop", e => {
+  e.preventDefault(); dz.classList.remove("drag-over");
+  const dt = new DataTransfer();
+  dt.items.add(e.dataTransfer.files[0]);
+  input.files = dt.files;
+  label.textContent = input.files[0]?.name || "";
+  dz.classList.add("has-file");
+});
+
+function copyTemplate() {
+  navigator.clipboard.writeText('MODEL_NAME = "MyClassifier"\nMODEL_ARCH = [16, 64, 32, 4]');
+  showToast("Template copied!");
+}
+
+function toggleLog() {
+  const panel = document.getElementById("repair-log-panel");
+  const btn   = document.querySelector(".arb-toggle-btn");
+  const open  = panel.style.display !== "none";
+  panel.style.display = open ? "none" : "block";
+  btn.textContent = btn.textContent
+    .replace(open ? "▴" : "▾", open ? "▾" : "▴")
+    .replace(open ? "Hide" : "Show", open ? "Show" : "Hide");
+}
+</script>
+{% endblock %}

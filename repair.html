@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Auto Repair{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Auto Repair</h1>
+    <p class="page-sub">Apply intelligent repair strategies to damaged layers</p>
+  </div>
+  <a href="{{ url_for('inject_error') }}" class="btn-secondary-sm">← Inject Error</a>
+</div>
+
+{% if result %}
+<div class="alert alert-success">
+  <strong>✓ Repair applied — {{ result.strategy }}</strong>
+  <div class="repair-log-preview">
+    {% for entry in result.logs[:5] %}
+    <div class="rlp-row">
+      <span class="rlp-strategy">{{ entry.strategy }}</span>
+      <span class="rlp-msg">{{ entry.message }}</span>
+      {% if entry.before is not none %}
+      <span class="rlp-delta mono">{{ "%.3f"|format(entry.before) }} → {{ "%.3f"|format(entry.after) }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% if result.logs|length > 5 %}
+    <div class="rlp-more">+ {{ result.logs|length - 5 }} more actions</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="two-col">
+  <!-- Repair Form -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Select Strategy</span></div>
+    <form method="POST" class="repair-form">
+      <div class="strategy-grid">
+        <label class="strategy-card recommended">
+          <input type="radio" name="strategy" value="auto" checked>
+          <span class="strat-icon">🤖</span>
+          <span class="strat-name">Auto Repair</span>
+          <span class="strat-badge">Recommended</span>
+          <span class="strat-desc">Detects issues and dispatches the best strategy per layer</span>
+        </label>
+        <label class="strategy-card">
+          <input type="radio" name="strategy" value="clip">
+          <span class="strat-icon">✂</span>
+          <span class="strat-name">Weight Clipping</span>
+          <span class="strat-desc">Clips weights to [−3, +3]. Best for explosion & sign flip</span>
+        </label>
+        <label class="strategy-card">
+          <input type="radio" name="strategy" value="xavier">
+          <span class="strat-icon">⊞</span>
+          <span class="strat-name">Xavier Reinit</span>
+          <span class="strat-desc">Reinitialises dead/near-zero weights. Best for dead neurons</span>
+        </label>
+        <label class="strategy-card">
+          <input type="radio" name="strategy" value="gradient">
+          <span class="strat-icon">∇</span>
+          <span class="strat-name">Gradient Norm</span>
+          <span class="strat-desc">Rescales weight matrix norm. Best for vanishing gradients</span>
+        </label>
+        <label class="strategy-card">
+          <input type="radio" name="strategy" value="denoise">
+          <span class="strat-icon">◎</span>
+          <span class="strat-name">Noise Denoising</span>
+          <span class="strat-desc">Soft-threshold at 75th percentile. Best for noisy weights</span>
+        </label>
+        <label class="strategy-card">
+          <input type="radio" name="strategy" value="bias">
+          <span class="strat-icon">⊕</span>
+          <span class="strat-name">Bias Correction</span>
+          <span class="strat-desc">Zero-centres & normalises biases. Best for bias shift</span>
+        </label>
+      </div>
+
+      <div class="form-group" style="margin-top:20px">
+        <label>Target (optional — default: all layers)</label>
+        <select name="layer">
+          <option value="all">All layers</option>
+          {% for l in dnn.layers %}
+          <option value="{{ loop.index0 }}" {% if not l.healthy %}style="color:#FF4560"{% endif %}>
+            {{ l.name }}{% if not l.healthy %} ⚠ {{ l.error_type }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="submit" class="auth-btn" style="margin-top:20px">✦ Apply Repair</button>
+    </form>
+  </div>
+
+  <!-- Repair Log -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Repair Log</span>
+      <span class="card-badge">{{ dnn.repair_log|length }} entries</span>
+    </div>
+    <div class="repair-log-scroll">
+      {% if dnn.repair_log %}
+        {% for entry in dnn.repair_log|reverse %}
+        <div class="repair-entry">
+          <span class="re-time">{{ entry.time }}</span>
+          <span class="re-strategy strategy-{{ entry.strategy|lower|replace(' ','-') }}">{{ entry.strategy }}</span>
+          <span class="re-msg">{{ entry.message }}</span>
+          {% if entry.before is not none %}
+          <span class="re-delta mono">{{ entry.before }} → {{ entry.after }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">No repairs applied yet.<br>Inject an error then apply a strategy.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.strategy-card input').forEach(radio => {
+  radio.addEventListener('change', () => {
+    document.querySelectorAll('.strategy-card').forEach(c => c.classList.remove('selected'));
+    radio.closest('.strategy-card').classList.add('selected');
+  });
+});
+document.querySelector('.strategy-card input:checked')
+  ?.closest('.strategy-card').classList.add('selected');
+</script>
+{% endblock %}

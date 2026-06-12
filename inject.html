@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Inject Error{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Inject Error</h1>
+    <p class="page-sub">Simulate failures in your neural network layers</p>
+  </div>
+  <a href="{{ url_for('repair') }}" class="btn-primary-sm">Go to Repair →</a>
+</div>
+
+{% if result %}
+<div class="alert alert-warning">
+  ⚡ Error injected into <strong class="cyan">{{ result.layer }}</strong> —
+  type: <strong class="red">{{ result.error.replace('_',' ').title() }}</strong>
+  <div style="margin-top:8px">
+    <a href="{{ url_for('repair') }}" class="btn-primary-sm">Repair Now →</a>
+  </div>
+</div>
+{% endif %}
+
+<div class="two-col">
+  <!-- Inject Form -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Configure Injection</span></div>
+    <form method="POST" class="inject-form">
+      <div class="form-group">
+        <label>Target Layer</label>
+        <div class="layer-picker">
+          {% for l in dnn.layers %}
+          <label class="layer-option {% if not l.healthy %}layer-damaged{% endif %}">
+            <input type="radio" name="layer" value="{{ loop.index0 }}" {% if loop.first %}checked{% endif %}>
+            <span class="layer-opt-name">{{ l.name }}</span>
+            <span class="layer-opt-shape mono">{{ l.n_in }}×{{ l.n_out }}</span>
+            {% if not l.healthy %}
+              <span class="badge badge-red" style="font-size:9px">{{ l.error_type }}</span>
+            {% endif %}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:20px">
+        <label>Error Type</label>
+        <div class="error-type-grid">
+          <label class="error-type-card" data-type="weight_explosion">
+            <input type="radio" name="error_type" value="weight_explosion" checked>
+            <span class="et-icon">💥</span>
+            <span class="et-name">Weight Explosion</span>
+            <span class="et-desc">50–200× weight scale</span>
+          </label>
+          <label class="error-type-card" data-type="dead_neurons">
+            <input type="radio" name="error_type" value="dead_neurons">
+            <span class="et-icon">☠</span>
+            <span class="et-name">Dead Neurons</span>
+            <span class="et-desc">70% weights zeroed</span>
+          </label>
+          <label class="error-type-card" data-type="gradient_vanish">
+            <input type="radio" name="error_type" value="gradient_vanish">
+            <span class="et-icon">↓</span>
+            <span class="et-name">Gradient Vanishing</span>
+            <span class="et-desc">Scale by 0.0001</span>
+          </label>
+          <label class="error-type-card" data-type="noisy_weights">
+            <input type="radio" name="error_type" value="noisy_weights">
+            <span class="et-icon">〜</span>
+            <span class="et-name">Noisy Weights</span>
+            <span class="et-desc">Gaussian noise σ=10</span>
+          </label>
+          <label class="error-type-card" data-type="sign_flip">
+            <input type="radio" name="error_type" value="sign_flip">
+            <span class="et-icon">±</span>
+            <span class="et-name">Sign Flip</span>
+            <span class="et-desc">Negate all weights</span>
+          </label>
+          <label class="error-type-card" data-type="bias_shift">
+            <input type="radio" name="error_type" value="bias_shift">
+            <span class="et-icon">⟵</span>
+            <span class="et-name">Bias Shift</span>
+            <span class="et-desc">Random ×100 bias offset</span>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-danger" style="margin-top:24px; width:100%">
+        ⚡ INJECT ERROR
+      </button>
+    </form>
+  </div>
+
+  <!-- Layer Status -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Current Layer Status</span></div>
+    {% for l in dnn.layers %}
+    <div class="layer-status-row {% if not l.healthy %}damaged{% endif %}">
+      <div class="lsr-left">
+        <span class="lsr-name">{{ l.name }}</span>
+        <span class="lsr-shape mono">{{ l.n_in }}×{{ l.n_out }}</span>
+      </div>
+      <div class="lsr-right">
+        <div class="lsr-bar-wrap">
+          <div class="lsr-bar" style="width:{{ [l.stats().mean * 100, 100]|min }}%"></div>
+        </div>
+        {% if l.healthy %}
+          <span class="badge badge-green">OK</span>
+        {% else %}
+          <span class="badge badge-red">{{ l.error_type.replace('_',' ') }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="info-box" style="margin-top:20px">
+      <strong>Tip:</strong> After injecting, go to the
+      <a href="{{ url_for('repair') }}">Repair page</a> to apply a fix strategy.
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Highlight selected error type card
+document.querySelectorAll('.error-type-card input').forEach(radio => {
+  radio.addEventListener('change', () => {
+    document.querySelectorAll('.error-type-card').forEach(c => c.classList.remove('selected'));
+    radio.closest('.error-type-card').classList.add('selected');
+  });
+});
+document.querySelector('.error-type-card input:checked')
+  ?.closest('.error-type-card').classList.add('selected');
+</script>
+{% endblock %}

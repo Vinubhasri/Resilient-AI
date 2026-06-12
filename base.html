@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}DNN Repair{% endblock %} — Resilient AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body>
+
+{% if show_nav is not defined or show_nav %}
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <span class="logo-icon">⬡</span>
+    <span class="logo-text">Resilient<em>AI</em></span>
+  </div>
+
+  <div class="nav-section-label">WORKSPACE</div>
+  <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+    <span class="nav-icon">◈</span> Dashboard
+  </a>
+  <a href="{{ url_for('graphs') }}" class="nav-link {% if request.endpoint == 'graphs' %}active{% endif %}">
+    <span class="nav-icon">◉</span> Graphs
+  </a>
+
+  <div class="nav-section-label">OPERATIONS</div>
+  <a href="{{ url_for('upload_model') }}" class="nav-link {% if request.endpoint == 'upload_model' %}active{% endif %}">
+    <span class="nav-icon">⬆</span> Upload Model
+  </a>
+  <a href="{{ url_for('inject_error') }}" class="nav-link {% if request.endpoint == 'inject_error' %}active{% endif %}">
+    <span class="nav-icon">⚡</span> Inject Error
+  </a>
+  <a href="{{ url_for('repair') }}" class="nav-link {% if request.endpoint == 'repair' %}active{% endif %}">
+    <span class="nav-icon">✦</span> Auto Repair
+  </a>
+
+  <div class="nav-section-label">OUTPUT</div>
+  <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}">
+    <span class="nav-icon">⬇</span> Reports
+  </a>
+
+  <div class="sidebar-footer">
+    <div class="user-chip">
+      <span class="user-dot"></span>
+      <span>{{ user }}</span>
+    </div>
+    <a href="{{ url_for('logout') }}" class="logout-btn">Sign out</a>
+  </div>
+</nav>
+{% endif %}
+
+<main class="main-content {% if show_nav is defined and not show_nav %}full-width{% endif %}">
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

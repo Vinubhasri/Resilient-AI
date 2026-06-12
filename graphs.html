@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Graphs{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Graphs</h1>
+    <p class="page-sub">Training curves and weight distribution analysis</p>
+  </div>
+  <button class="btn-secondary" onclick="refreshCharts()">↺ Refresh</button>
+</div>
+
+<div class="charts-grid">
+  <!-- Loss Curve -->
+  <div class="card chart-card">
+    <div class="card-header">
+      <span class="card-title">Loss Curve</span>
+      <span class="card-badge" id="steps-badge">{{ state.history|length }} steps</span>
+    </div>
+    <canvas id="lossChart" height="220"></canvas>
+  </div>
+
+  <!-- Accuracy Curve -->
+  <div class="card chart-card">
+    <div class="card-header">
+      <span class="card-title">Accuracy Curve</span>
+      <span class="card-badge cyan">{{ state.accuracy }}% current</span>
+    </div>
+    <canvas id="accChart" height="220"></canvas>
+  </div>
+
+  <!-- Weight Norms -->
+  <div class="card chart-card">
+    <div class="card-header">
+      <span class="card-title">Weight Norms per Layer</span>
+      <span class="card-badge">Frobenius norm</span>
+    </div>
+    <canvas id="normChart" height="220"></canvas>
+  </div>
+
+  <!-- Weight Std -->
+  <div class="card chart-card">
+    <div class="card-header">
+      <span class="card-title">Weight Std Deviation</span>
+      <span class="card-badge">Spread indicator</span>
+    </div>
+    <canvas id="stdChart" height="220"></canvas>
+  </div>
+</div>
+
+<!-- Train Controls -->
+<div class="card" style="margin-top:8px">
+  <div class="card-header"><span class="card-title">Train More Steps</span></div>
+  <div class="train-controls">
+    <button class="train-btn" onclick="trainN(10)">+10 Steps</button>
+    <button class="train-btn" onclick="trainN(25)">+25 Steps</button>
+    <button class="train-btn" onclick="trainN(50)">+50 Steps</button>
+    <button class="train-btn" onclick="trainN(100)">+100 Steps</button>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { color: "#7A8AAD", font: {family:"Space Mono", size:9} }, grid: { color: "#1a2030" } },
+    y: { ticks: { color: "#7A8AAD", font: {family:"Space Mono", size:9} }, grid: { color: "#1a2030" } }
+  }
+};
+
+const history = {{ state.history | tojson }};
+const layers  = {{ state.layers  | tojson }};
+
+const labels = history.map((_, i) => i + 1);
+
+function mkLine(id, data, color, label) {
+  return new Chart(document.getElementById(id), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label, data,
+        borderColor: color,
+        backgroundColor: color + "18",
+        borderWidth: 2,
+        pointRadius: data.length > 60 ? 0 : 2,
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: { ...chartDefaults, plugins: { legend: { display: false } } }
+  });
+}
+
+function mkBar(id, data, colors, lbls) {
+  return new Chart(document.getElementById(id), {
+    type: "bar",
+    data: {
+      labels: lbls,
+      datasets: [{ data, backgroundColor: colors, borderRadius: 4 }]
+    },
+    options: { ...chartDefaults }
+  });
+}
+
+let lossC = mkLine("lossChart", history.map(h => h.loss), "#00E5FF", "Loss");
+let accC  = mkLine("accChart",  history.map(h => h.acc),  "#00FF88", "Accuracy");
+
+const layerNames  = layers.map(l => l.name.length > 8 ? l.name.slice(0,8)+"…" : l.name);
+const normColors  = layers.map(l => l.healthy ? "#00E5FF88" : "#FF456088");
+const stdColors   = layers.map(l => l.healthy ? "#B06AFF88" : "#FF456088");
+
+let normC = mkBar("normChart", layers.map(l => l.norm), normColors, layerNames);
+let stdC  = mkBar("stdChart",  layers.map(l => l.std),  stdColors,  layerNames);
+
+function refreshCharts() { location.reload(); }
+
+async function trainN(n) {
+  showToast("Training " + n + " steps…");
+  const r = await fetch("/api/train", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({steps:n})});
+  const d = await r.json();
+
+  // Update loss chart
+  const newLabels = d.history.map((_,i) => i+1);
+  lossC.data.labels = newLabels;
+  lossC.data.datasets[0].data = d.history.map(h => h.loss);
+  lossC.update();
+
+  accC.data.labels = newLabels;
+  accC.data.datasets[0].data = d.history.map(h => h.acc);
+  accC.update();
+
+  normC.data.datasets[0].data = d.layers.map(l => l.norm);
+  normC.update();
+  stdC.data.datasets[0].data  = d.layers.map(l => l.std);
+  stdC.update();
+
+  document.getElementById("steps-badge").textContent = d.history.length + " steps";
+  showToast("Done — Loss: " + d.loss + " | Acc: " + d.accuracy + "%");
+}
+</script>
+{% endblock %}

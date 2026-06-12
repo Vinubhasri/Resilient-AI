@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set show_nav = false %}
+{% block title %}Create Account{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-visual">
+    <div class="auth-visual-inner">
+      <div class="neural-rings">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
+        <div class="ring-center">⬡</div>
+      </div>
+      <h2 class="auth-tagline">Build. Break.<br>Repair. Repeat.</h2>
+      <p class="auth-sub">5 repair strategies. Pure NumPy. Zero overhead.</p>
+    </div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-form-box">
+      <div class="auth-form-logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">Resilient<em>AI</em></span>
+      </div>
+      <h1 class="auth-heading">Create account</h1>
+      <p class="auth-subheading">Start repairing neural networks</p>
+
+      {% if error %}
+      <div class="auth-error">⚠ {{ error }}</div>
+      {% endif %}
+
+      <form method="POST" class="auth-form">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" name="username" placeholder="choose_a_username" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="••••••••" autocomplete="new-password" required>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password</label>
+          <input type="password" name="confirm" placeholder="••••••••" autocomplete="new-password" required>
+        </div>
+        <button type="submit" class="auth-btn">Create Account →</button>
+      </form>
+
+      <p class="auth-switch">Already have an account? <a href="{{ url_for('login') }}">Sign in</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

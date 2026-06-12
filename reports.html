@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Reports</h1>
+    <p class="page-sub">Download full analysis and repair reports</p>
+  </div>
+</div>
+
+<!-- Summary snapshot -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">FINAL LOSS</div>
+    <div class="stat-value cyan">{{ "%.4f"|format(state.loss) }}</div>
+  </div>
+  <div class="stat-card accent-green">
+    <div class="stat-label">ACCURACY</div>
+    <div class="stat-value">{{ state.accuracy }}%</div>
+  </div>
+  <div class="stat-card {% if state.issues %}accent-red{% else %}accent-green{% endif %}">
+    <div class="stat-label">ISSUES</div>
+    <div class="stat-value">{{ state.issues|length }}</div>
+  </div>
+  <div class="stat-card accent-purple">
+    <div class="stat-label">REPAIR ACTIONS</div>
+    <div class="stat-value">{{ state.repair_log|length }}</div>
+  </div>
+</div>
+
+<!-- Download Cards -->
+<div class="two-col">
+  <div class="card report-card">
+    <div class="report-card-icon">◈</div>
+    <h2 class="report-card-title">HTML Report</h2>
+    <p class="report-card-desc">
+      A fully styled, self-contained HTML file with executive summary,
+      layer analysis table, detected issues, and complete repair log.
+      Open in any browser — no dependencies.
+    </p>
+    <div class="report-includes">
+      <div class="ri-item">✓ Executive summary</div>
+      <div class="ri-item">✓ Layer-by-layer stats</div>
+      <div class="ri-item">✓ Detected issues</div>
+      <div class="ri-item">✓ Full repair log</div>
+      <div class="ri-item">✓ Dark-theme styled</div>
+    </div>
+    <a href="{{ url_for('download_html') }}" class="auth-btn" style="text-align:center;text-decoration:none;display:block;margin-top:20px">
+      ⬇ Download HTML Report
+    </a>
+  </div>
+
+  <div class="card report-card">
+    <div class="report-card-icon" style="color:#FFB800">{}</div>
+    <h2 class="report-card-title">JSON Report</h2>
+    <p class="report-card-desc">
+      Machine-readable JSON with full model state, training history,
+      layer statistics, and repair log — ready for programmatic analysis
+      or integration with external tools.
+    </p>
+    <div class="report-includes">
+      <div class="ri-item">✓ Complete model state</div>
+      <div class="ri-item">✓ Training history array</div>
+      <div class="ri-item">✓ Layer weight stats</div>
+      <div class="ri-item">✓ Structured repair log</div>
+      <div class="ri-item">✓ Machine-readable</div>
+    </div>
+    <a href="{{ url_for('download_json') }}" class="btn-secondary" style="text-align:center;text-decoration:none;display:block;margin-top:20px">
+      ⬇ Download JSON Report
+    </a>
+  </div>
+</div>
+
+<!-- Repair log preview -->
+<div class="card" style="margin-top:8px">
+  <div class="card-header">
+    <span class="card-title">Repair Log Preview</span>
+    <span class="card-badge">{{ state.repair_log|length }} entries</span>
+  </div>
+  <div class="repair-log-scroll">
+    {% if state.repair_log %}
+      {% for entry in state.repair_log|reverse %}
+      <div class="repair-entry">
+        <span class="re-time">{{ entry.time }}</span>
+        <span class="re-strategy">{{ entry.strategy }}</span>
+        <span class="re-msg">{{ entry.message }}</span>
+        {% if entry.before is not none %}
+        <span class="re-delta mono">{{ entry.before }} → {{ entry.after }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No repairs recorded yet. Go to <a href="{{ url_for('repair') }}">Repair</a> to apply strategies.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
